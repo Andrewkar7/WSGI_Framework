@@ -1,7 +1,7 @@
 # Для запуска используем gunicorn
 # gunicorn simple_wsgi:application
 
-from framy.heart import Application
+from framy.heart import Application, DebugApplication, FakeApplication
 from framy.templator import render
 from models import OurSite
 from logging_our import Logger, debug
@@ -42,14 +42,32 @@ def create_category(request):
         if category_id:
             category = site.find_category_by_id(int(category_id))
 
-            new_category = site.create_course(name, category)
-            site.categories.append(new_category)
+        new_category = site.create_course(name, category)
+        site.categories.append(new_category)
         return '200 OK', render('create_category.html')
     else:
         categories = site.categories
         return '200 OK', render('create_category.html', categories=categories)
 
 
+routes = {
+    '/': main_view,
+    '/create-course/': create_course,
+    '/create-category/': create_category,
+}
+
+
+def secret_front(request):
+    request['secret'] = 'some secret'
+
+
+fronts = [secret_front]
+
+application = Application(routes, fronts)
+# application = DebugApplication(routes, fronts)
+# application = FakeApplication(routes, fronts)
+
+@application.add_route('/copy-course/')
 def copy_course(request):
     request_params = request['request_params']
     name = request_params['name']
@@ -63,24 +81,7 @@ def copy_course(request):
     return '200 OK', render('course_list.html', objects_list=site.courses)
 
 
+@application.add_route('/category-list/')
 def category_list(request):
     logger.log('Список категорий')
     return '200 OK', render('category_list.html', objects_list=site.categories)
-
-
-routes = {
-    '/': main_view,
-    '/create-course/': create_course,
-    '/create-category/': create_category,
-    '/copy-course/': copy_course,
-    '/category-list/': category_list
-}
-
-
-def secret_front(request):
-    request['secret'] = 'some secret'
-
-
-fronts = [secret_front]
-
-application = Application(routes, fronts)
